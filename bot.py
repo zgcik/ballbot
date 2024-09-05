@@ -81,6 +81,3 @@ class Bot:
 
     def turn(self, ang):
         pass
-
-    def run(self):
-        pass
