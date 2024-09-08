@@ -79,5 +79,5 @@ class Bot:
     def drive(self, dis):
         pass
 
-    def turn(self, ang):
+    def rotate(self, ang):
         pass
