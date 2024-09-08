@@ -43,20 +43,48 @@ class Camera:
         self.frame = self.undistort_img(frame)
         return self.frame
     
+    # def est_pose(self, detection):
+    #     focal_length = self.int_matrix[0][0]
+    #     target_box = detection[1]
+    #     true_dim = self.target_dim
+
+    #     # compute target pose based on pixel dims
+    #     pix_h = target_box[3]
+    #     pix_c = target_box[0]
+    #     dis = true_dim / pix_h * focal_length
+
+    #     x_shift = (self.cam_dim[1]/2) - pix_c
+    #     theta = np.arctan(x_shift / focal_length)
+
+    #     return dis, theta
+
     def est_pose(self, detection):
         focal_length = self.int_matrix[0][0]
-        target_box = detection[1]
+        target_box = detection[1]  # Assuming this format is (x, y, w, h)
         true_dim = self.target_dim
 
-        # compute target pose based on pixel dims
+        # Extract the height of the bounding box
         pix_h = target_box[3]
         pix_c = target_box[0]
+
+        # Debugging: Print the key values
+        print(f"Focal length: {focal_length}, Bounding box height: {pix_h}, True dimension: {true_dim}")
+
+        # Compute the distance based on pixel height
         dis = true_dim / pix_h * focal_length
 
-        x_shift = (self.cam_dim[1]/2) - pix_c
+        # Debugging: Print calculated distance
+        print(f"Calculated distance: {dis}")
+
+        # Compute horizontal shift
+        x_shift = (self.cam_dim[0] / 2) - pix_c
         theta = np.arctan(x_shift / focal_length)
 
+        # Debugging: Print calculated angle
+        print(f"Calculated angle: {theta}")
+
         return dis, theta
+
     
     def detect_closest(self):
         self.frame = self.get_frame()
@@ -86,3 +114,4 @@ if __name__ == "__main__":
             print(f'd:{d}, th:{th}')
         except:
             print('no balls found')
+        
