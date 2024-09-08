@@ -57,13 +57,15 @@ class Camera:
         return dis, theta
     
     def detect_closest(self):
+        self.frame = self.get_frame()
         bboxes, _ = self.detector.detect(self.frame)
 
         dis_min = 999
-        theta = 999
+        theta_min = 999
         for detection in bboxes:
             dis, theta = self.est_pose(detection)
             if dis < dis_min:
                 dis_min = dis
+                theta_min = theta
 
-        return dis_min, theta
+        return dis_min, theta_min
