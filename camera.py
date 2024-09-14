@@ -26,7 +26,7 @@ class Camera:
         self.cam_dim = (640, 480)
         self.target_dim = 0.0342 * 2
 
-    def undistort_img(self, frame):
+    def __undistort_img__(self, frame):
         h, w = frame.shape[:2]
         n_camera_matrix, _ = cv2.getOptimalNewCameraMatrix(
             self.int_matrix, self.dist_matrix, (w, h), 1, (w, h)
@@ -40,54 +40,25 @@ class Camera:
     def get_frame(self):
         _, frame = self.cam.read()
         if frame is None: return
-        self.frame = self.undistort_img(frame)
-        return self.frame
+        self.frame = self.__undistort_img__(frame)
     
-    # def est_pose(self, detection):
-    #     focal_length = self.int_matrix[0][0]
-    #     target_box = detection[1]
-    #     true_dim = self.target_dim
-
-    #     # compute target pose based on pixel dims
-    #     pix_h = target_box[3]
-    #     pix_c = target_box[0]
-    #     dis = true_dim / pix_h * focal_length
-
-    #     x_shift = (self.cam_dim[1]/2) - pix_c
-    #     theta = np.arctan(x_shift / focal_length)
-
-    #     return dis, theta
-
-    def est_pose(self, detection):
+    def __est_pose__(self, detection):
         focal_length = self.int_matrix[0][0]
-        target_box = detection[1]  # Assuming this format is (x, y, w, h)
+        target_box = detection[1]
         true_dim = self.target_dim
 
-        # Extract the height of the bounding box
+        # compute target pose based on pixel dims
         pix_h = target_box[3]
         pix_c = target_box[0]
-
-        # Debugging: Print the key values
-        print(f"Focal length: {focal_length}, Bounding box height: {pix_h}, True dimension: {true_dim}")
-
-        # Compute the distance based on pixel height
         dis = true_dim / pix_h * focal_length
 
-        # Debugging: Print calculated distance
-        print(f"Calculated distance: {dis}")
-
-        # Compute horizontal shift
-        x_shift = (self.cam_dim[0] / 2) - pix_c
+        x_shift = (self.cam_dim[1]/2) - pix_c
         theta = np.arctan(x_shift / focal_length)
 
-        # Debugging: Print calculated angle
-        print(f"Calculated angle: {theta}")
-
         return dis, theta
-
     
     def detect_closest(self):
-        self.frame = self.get_frame()
+        self.get_frame()
         bboxes, _ = self.detector.detect(self.frame)
 
         if len(bboxes) == 0: return
@@ -95,16 +66,78 @@ class Camera:
         dis_min = 6
         theta_min = np.pi
         for detection in bboxes:
-            dis, theta = self.est_pose(detection)
+            dis, theta = self.__est_pose__(detection)
             if dis < dis_min:
                 dis_min = dis
                 theta_min = theta
 
         return (dis_min, theta_min)
     
+    def __get_lines__(self):
+        # filtering frame to get lines
+        gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        _, thresh = cv2.threshold(blurred, 200, 255, cv2.THRESH_BINARY)
+
+        # canny edge detection
+        edges = cv2.Canny(thresh, 50, 150, apertureSize=3)
+
+        # hough line detection
+        lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=100, minLineLength=100, maxLineGap=10)
+
+        return lines
+    
+    def __line_equation__(self, x1, y1, x2, y2):
+        a = y2 - y1
+        b = x1 - x2
+        c = -(a * x1 + b * y1)
+        return a, b, c # in form ax + by + c = 0
+    
+    def __find_intersection__(self, line1, line2):
+        a1, b1, c1 = line1
+        a2, b2, c2 = line2
+
+        det = a1 * b2 - a2 * b1
+        if det == 0:
+            return None
+        else:
+            x = (b2 * c1 - b2 * c2) / det
+            y = (a1 * c2 - a2 * c1) / det
+            return (x, y)
+    
+    def __check_point_on_line__(self, intersection, x1, y1, x2, y2):
+        return min(x1, x2) <= intersection[0] <= max(x1, x2) and min(y1, y2) <= intersection[1] <= max(y1, y2)
+
+    
+    def boundary_check(self):
+        # updating frame
+        self.get_frame()
+
+        # finding the lines in frame
+        lines = self.__get_lines__()
+        
+        if lines is not None:
+            for i, line1 in enumerate(lines):
+                x1, y1, x2, y2 = line1[0]
+                line1_eq = self.__line_equation__(x1, y1, x2, y2)
+
+                for j, line2 in enumerate(lines):
+                    if i == j:
+                        continue
+
+                    x3, y3, x4, y4 = line2[0]
+                    line2_eq = self.__line_equation__(x3, y3, x4, y4)
+
+                    intersection = self.__find_intersection__(line1_eq, line2_eq)
+                    if intersection:
+                        if self.__check_point_on_line__(intersection, x1, y1, x2, y2) and self.__check_point_on_line__(intersection, x3, y3, x4, y4):
+                            return intersection
+                    else:
+                        return None
+    
 
 if __name__ == "__main__":
-    cam = Camera(device=2)
+    cam = Camera(device=1)
 
     while True:
         ret = cam.detect_closest()
