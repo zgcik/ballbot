@@ -24,7 +24,7 @@ class Camera:
         self.frame = self.get_frame()
 
         self.cam_dim = (640, 480)
-        self.target_dim = 0.0342 * 2
+        self.target_dim = 0.0342# * 2
 
     def __undistort_img__(self, frame):
         h, w = frame.shape[:2]
@@ -61,13 +61,15 @@ class Camera:
         self.get_frame()
         bboxes, _ = self.detector.detect(self.frame)
 
+        bboxes = self.get_valid_detections(bboxes)
         if len(bboxes) == 0: return
         
         dis_min = 6
         theta_min = np.pi
-        for detection in bboxes:
+        for i, detection in enumerate(bboxes):
             dis, theta = self.__est_pose__(detection)
-            if dis < dis_min:
+
+            if i == 0 or dis < dis_min:
                 dis_min = dis
                 theta_min = theta
 
@@ -87,53 +89,72 @@ class Camera:
 
         return lines
     
-    def __line_equation__(self, x1, y1, x2, y2):
-        a = y2 - y1
-        b = x1 - x2
-        c = -(a * x1 + b * y1)
-        return a, b, c # in form ax + by + c = 0
+    # def __line_equation__(self, x1, y1, x2, y2):
+    #     a = y2 - y1
+    #     b = x1 - x2
+    #     c = -(a * x1 + b * y1)
+    #     return a, b, c # in form ax + by + c = 0
     
-    def __find_intersection__(self, line1, line2):
-        a1, b1, c1 = line1
-        a2, b2, c2 = line2
+    # def __find_intersection__(self, line1, line2):
+    #     a1, b1, c1 = line1
+    #     a2, b2, c2 = line2
 
-        det = a1 * b2 - a2 * b1
-        if det == 0:
-            return None
-        else:
-            x = (b2 * c1 - b2 * c2) / det
-            y = (a1 * c2 - a2 * c1) / det
-            return (x, y)
-    
-    def __check_point_on_line__(self, intersection, x1, y1, x2, y2):
-        return min(x1, x2) <= intersection[0] <= max(x1, x2) and min(y1, y2) <= intersection[1] <= max(y1, y2)
+    #     det = a1 * b2 - a2 * b1
+    #     if det == 0:
+    #         return None
+    #     else:
+    #         x = (b2 * c1 - b2 * c2) / det
+    #         y = (a1 * c2 - a2 * c1) / det
+    #         return (x, y)
 
     
-    def boundary_check(self):
-        # updating frame
-        self.get_frame()
+    # def boundary_check(self):
+    #     # updating frame
+    #     self.get_frame()
 
-        # finding the lines in frame
-        lines = self.__get_lines__()
+    #     # finding the lines in frame
+    #     lines = self.__get_lines__()
         
-        if lines is not None:
-            for i, line1 in enumerate(lines):
-                x1, y1, x2, y2 = line1[0]
-                line1_eq = self.__line_equation__(x1, y1, x2, y2)
+    #     if lines is not None:
+    #         for i, line1 in enumerate(lines):
+    #             x1, y1, x2, y2 = line1[0]
+    #             line1_eq = self.__line_equation__(x1, y1, x2, y2)
 
-                for j, line2 in enumerate(lines):
-                    if i == j:
-                        continue
+    #             for j, line2 in enumerate(lines):
+    #                 if i == j:
+    #                     continue
 
-                    x3, y3, x4, y4 = line2[0]
-                    line2_eq = self.__line_equation__(x3, y3, x4, y4)
+    #                 x3, y3, x4, y4 = line2[0]
+    #                 line2_eq = self.__line_equation__(x3, y3, x4, y4)
 
-                    intersection = self.__find_intersection__(line1_eq, line2_eq)
-                    if intersection:
-                        if self.__check_point_on_line__(intersection, x1, y1, x2, y2) and self.__check_point_on_line__(intersection, x3, y3, x4, y4):
-                            return intersection
-                    else:
-                        return None
+    #                 intersection = self.__find_intersection__(line1_eq, line2_eq)
+    #                 if intersection:
+    #                     return intersection
+    #                 else:
+    #                     return None
+    
+    def get_valid_detections(self, bboxes):
+        lines = self.__get_lines__()
+
+        valid_detections = []        
+        for detection in bboxes:
+            y2_bbox = detection[1][2] + detection[1][3]/2
+
+            check = False
+            for line in lines:
+                _, y1, _, y2 = line[0]
+                if y2_bbox < (y1 + y2) // 2:
+                    check = False
+                    break
+                else:
+                    check = True
+            
+            if check:
+                valid_detections.append(detection)
+
+        return valid_detections
+
+
     
 
 if __name__ == "__main__":
