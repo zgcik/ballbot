@@ -20,20 +20,22 @@ class Bot:
         self.arduino_port = '/dev/ttyACM0'
         self.baud_rate = 9600
 
-    def send_command(self, command):
-        try:
-            with serial.Serial(self.arduino_port, self.baud_rate, timeout=1) as ser:
+    def setup_arduino(self):
+        with serial.Serial(self.arduino_port, self.baud_rate, timeout=1) as ser:
                 # initialise arduino (may be placed in instantiation of bot object)
                 time.sleep(2)
                 ser.flushInput()
                 ser.flushOutput()
+
+    def send_command(self, command):
+        try:
+            with serial.Serial(self.arduino_port, self.baud_rate, timeout=1) as ser:
 
                 # send command
                 ser.write(f'{command}\n'.encode())
 
                 if ser.in_waiting > 0:
                     response = ser.readline().decode().strip()
-                    # TODO: update pose
 
                     return response
                 else:
@@ -56,6 +58,11 @@ class Bot:
     def drive(self, dis):
         revs = self.__calc_revs__(dis)
         self.send_command(f'$Drive: {revs} Rev')
+        self.update_pose(dis, 0)
 
     def rotate(self, ang):
-        pass
+        self.send_command(f'$Turn: {ang} Rad')
+        self.update_pose(0, ang)
+
+    def flip(self):
+        self.send_command(f'$Flip: Theta 180 DT 60')
