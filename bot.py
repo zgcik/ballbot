@@ -22,7 +22,7 @@ class Bot:
 
     def setup_arduino(self):
         with serial.Serial(self.arduino_port, self.baud_rate, timeout=1) as ser:
-                # initialise arduino (may be placed in instantiation of bot object)
+                # initialise arduino
                 time.sleep(2)
                 ser.flushInput()
                 ser.flushOutput()
