@@ -1,12 +1,19 @@
 import cv2
 import os
 import numpy as np
+from picamera2 import Picamera2
 
 from detector import Detector
 
+
 class Camera:
     def __init__(self, device=0):
-        self.cam = cv2.VideoCapture(device)
+        cam = Picamera2()
+        mode = cam.sensor_modes[2]
+        config = cam.create_still_configuration(sensor={"output_size": mode["size"]})
+        cam.configure(config)  # type: ignore
+        cam.start()
+        self.cam = cam
 
         # importing calibration
         script_dir = os.path.dirname(__file__)
@@ -16,15 +23,13 @@ class Camera:
         self.dist_matrix = np.load(
             os.path.join(script_dir, "calibration", "dist_matrix.npy")
         )
-        
-        self.detector = Detector(
-            os.path.join(script_dir, "calibration", "model.pt")
-        )
+
+        self.detector = Detector(os.path.join(script_dir, "calibration", "model.pt"))
 
         self.frame = self.get_frame()
 
         self.cam_dim = (640, 480)
-        self.target_dim = 0.0342# * 2
+        self.target_dim = 0.0342  # * 2
 
     def __undistort_img__(self, frame):
         h, w = frame.shape[:2]
@@ -36,12 +41,14 @@ class Camera:
             frame, self.int_matrix, self.dist_matrix, None, n_camera_matrix
         )
         return undistorted
-    
+
     def get_frame(self):
-        _, frame = self.cam.read()
-        if frame is None: return
+        # this outputs in RGB (not BGR like cv2 video capture)
+        frame = self.cam.capture_array("main")  # type: ignore
+        if frame is None:
+            return
         self.frame = self.__undistort_img__(frame)
-    
+
     def __est_pose__(self, detection):
         focal_length = self.int_matrix[0][0]
         target_box = detection[1]
@@ -52,18 +59,19 @@ class Camera:
         pix_c = target_box[0]
         dis = true_dim / pix_h * focal_length
 
-        x_shift = (self.cam_dim[1]/2) - pix_c
+        x_shift = (self.cam_dim[1] / 2) - pix_c
         theta = np.arctan(x_shift / focal_length)
 
         return dis, theta
-    
+
     def detect_closest(self):
         self.get_frame()
         bboxes, _ = self.detector.detect(self.frame)
 
         bboxes = self.get_valid_detections(bboxes)
-        if len(bboxes) == 0: return
-        
+        if len(bboxes) == 0:
+            return
+
         dis_min = 6
         theta_min = np.pi
         for i, detection in enumerate(bboxes):
@@ -74,13 +82,9 @@ class Camera:
                 theta_min = theta
 
         return (dis_min, theta_min)
-    
-    def detect_box(self):
-        return
-    
     def __get_lines__(self):
         # filtering frame to get lines
-        gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(self.frame, cv2.COLOR_RGB2GRAY)
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
         _, thresh = cv2.threshold(blurred, 200, 255, cv2.THRESH_BINARY)
 
@@ -88,16 +92,18 @@ class Camera:
         edges = cv2.Canny(thresh, 50, 150, apertureSize=3)
 
         # hough line detection
-        lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=100, minLineLength=100, maxLineGap=10)
+        lines = cv2.HoughLinesP(
+            edges, 1, np.pi / 180, threshold=100, minLineLength=100, maxLineGap=10
+        )
 
         return lines
-    
+
     # def __line_equation__(self, x1, y1, x2, y2):
     #     a = y2 - y1
     #     b = x1 - x2
     #     c = -(a * x1 + b * y1)
     #     return a, b, c # in form ax + by + c = 0
-    
+
     # def __find_intersection__(self, line1, line2):
     #     a1, b1, c1 = line1
     #     a2, b2, c2 = line2
@@ -110,14 +116,13 @@ class Camera:
     #         y = (a1 * c2 - a2 * c1) / det
     #         return (x, y)
 
-    
     # def boundary_check(self):
     #     # updating frame
     #     self.get_frame()
 
     #     # finding the lines in frame
     #     lines = self.__get_lines__()
-        
+
     #     if lines is not None:
     #         for i, line1 in enumerate(lines):
     #             x1, y1, x2, y2 = line1[0]
@@ -135,13 +140,13 @@ class Camera:
     #                     return intersection
     #                 else:
     #                     return None
-    
+
     def get_valid_detections(self, bboxes):
         lines = self.__get_lines__()
 
-        valid_detections = []        
+        valid_detections = []
         for detection in bboxes:
-            y2_bbox = detection[1][2] + detection[1][3]/2
+            y2_bbox = detection[1][2] + detection[1][3] / 2
 
             check = False
             for line in lines:
@@ -151,14 +156,12 @@ class Camera:
                     break
                 else:
                     check = True
-            
+
             if check:
                 valid_detections.append(detection)
 
         return valid_detections
 
-
-    
 
 if __name__ == "__main__":
     cam = Camera(device=1)
@@ -168,7 +171,6 @@ if __name__ == "__main__":
 
         try:
             d, th = ret
-            print(f'd:{d}, th:{th}')
+            print(f"d:{d}, th:{th}")
         except:
-            print('no balls found')
-        
+            print("no balls found")
