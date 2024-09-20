@@ -24,6 +24,8 @@ def explore(bot):
     return True
 
 def collection(bot):
+    ball_count = 0
+
     while True:
         try:
             d, t = bot.cam.get_closest()
@@ -43,8 +45,28 @@ def collection(bot):
             print('no balls detected: exploring...')
             explore(bot)
         
+        if ball_count == 5:
+            dispose(bot)
+            break
+
+def dispose(bot):
+    ang_rotate = 0.0
+    while bot.cam.detect_box() is None:
+        bot.rotate(np.pi/4)
+        ang_rotate += np.pi/4
+
+        if ang_rotate == 2*np.pi:
+            bot.rotate(np.pi/4)
+            bot.drive(1.0)
+            ang_rotate = 0.0
+        
+    d, t = bot.cam.detect_box()
+    bot.rotate(t)
+    bot.drive(d)
+
+    return True
+        
 if __name__ == "__main__":
     bot = Bot()
-    
     explore(bot)
     collection(bot)

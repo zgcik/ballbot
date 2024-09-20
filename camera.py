@@ -75,6 +75,9 @@ class Camera:
 
         return (dis_min, theta_min)
     
+    def detect_box(self):
+        return
+    
     def __get_lines__(self):
         # filtering frame to get lines
         gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
