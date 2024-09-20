@@ -4,13 +4,18 @@ import os
 import time
 import numpy as np
 import glob
+from picamera2 import Picamera2
 
 BOARD_SIZE = (6, 9)
+
 
 def take_calibration_imgs(cam):
     i = 0
     while True:
-        _, frame = cam.read()
+        # key = input("enter to take photo")
+        frame = cam.capture_array("main")
+        frame = cv2.rotate(frame, cv2.ROTATE_180)
+        print("frame captured")
         debug_frame = frame.copy()
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -18,9 +23,10 @@ def take_calibration_imgs(cam):
 
         if ret:
             cv2.drawChessboardCorners(debug_frame, BOARD_SIZE, corners, ret)
+        cv2.imwrite("test.jpg", debug_frame)
 
         # take pic with 'c'
-        if cv2.waitKey(1) == ord("c") and ret:
+        if ret:
             last = int(time.time())
             script_dir = os.path.dirname(__file__)
             img_dir = os.path.join(script_dir, "calibration", "imgs")
@@ -29,14 +35,16 @@ def take_calibration_imgs(cam):
             i += 1
 
         # break with 'q'
-        if cv2.waitKey(1) == ord("q"):
-            break
+        # if key == "q":
+        #     break
+        time.sleep(0.5)
 
-        cv2.imshow("camera feed", debug_frame)
+        # cv2.imshow("camera feed", debug_frame)
 
     print("done")
     cam.release()
     cv2.destroyAllWindows()
+
 
 # def calibrate_camera():
 #     obj_points = []
@@ -87,13 +95,14 @@ def take_calibration_imgs(cam):
 
 #     print('finished camera calibration')
 
+
 def calibrate_camera():
     obj_points = []  # 3D points in real-world space
     img_points = []  # 2D points in image plane
 
     # Prepare the object points based on the known board size
     objp = np.zeros((np.prod(BOARD_SIZE), 3), np.float32)
-    objp[:, :2] = np.mgrid[0:BOARD_SIZE[0], 0:BOARD_SIZE[1]].T.reshape(-1, 2)
+    objp[:, :2] = np.mgrid[0 : BOARD_SIZE[0], 0 : BOARD_SIZE[1]].T.reshape(-1, 2)
 
     # Define the directory for calibration images
     script_dir = os.path.dirname(__file__)
@@ -101,7 +110,7 @@ def calibrate_camera():
     imgs = glob.glob(img_dir)
     imgs = [cv2.imread(img) for img in imgs]
 
-    print('Starting calibration...')
+    print("Starting calibration...")
 
     if not imgs:
         print("No images found for calibration.")
@@ -120,7 +129,9 @@ def calibrate_camera():
             obj_points.append(objp)
             img_points.append(corners)
             if image_shape is None:
-                image_shape = gray.shape[::-1]  # Capture shape from the first valid image
+                image_shape = gray.shape[
+                    ::-1
+                ]  # Capture shape from the first valid image
             print(f"Chessboard detected in image {i}.")
         else:
             print(f"Chessboard corners not found in image {i}.")
@@ -146,16 +157,23 @@ def calibrate_camera():
     np.save(os.path.join(script_dir, "calibration", "int_matrix.npy"), camera_matrix)
     np.save(os.path.join(script_dir, "calibration", "dist_matrix.npy"), dist_coeffs)
 
-    print('Finished camera calibration successfully.')
+    print("Finished camera calibration successfully.")
+
 
 def calibrate_baseline():
     pass
 
+
 def calibrate_wheel():
     pass
 
+
 if __name__ == "__main__":
-    cam = cv2.VideoCapture(2)
+    cam = Picamera2()
+    # mode = cam.sensor_modes[2]
+    # config = cam.create_still_configuration(sensor={"output_size": mode["size"]})
+    # cam.configure(config)  # type: ignore
+    cam.start()
 
     # take_calibration_imgs(cam)
     calibrate_camera()

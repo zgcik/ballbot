@@ -1,3 +1,4 @@
+from typing import cast
 import cv2
 import os
 import numpy as np
@@ -7,11 +8,14 @@ from detector import Detector
 
 
 class Camera:
+    frame: cv2.typing.MatLike
+    debug: cv2.typing.MatLike
+
     def __init__(self, device=0):
         cam = Picamera2()
-        mode = cam.sensor_modes[2]
-        config = cam.create_still_configuration(sensor={"output_size": mode["size"]})
-        cam.configure(config)  # type: ignore
+        # mode = cam.sensor_modes[2]
+        # config = cam.create_still_configuration(sensor={"output_size": mode["size"]})
+        # cam.configure(config)  # type: ignore
         cam.start()
         self.cam = cam
 
@@ -28,7 +32,7 @@ class Camera:
 
         self.frame = self.get_frame()
 
-        self.cam_dim = (640, 480)
+        self.cam_dim = (4608, 2592)
         self.target_dim = 0.0342  # * 2
 
     def __undistort_img__(self, frame):
@@ -44,10 +48,16 @@ class Camera:
 
     def get_frame(self):
         # this outputs in RGB (not BGR like cv2 video capture)
-        frame = self.cam.capture_array("main")  # type: ignore
+        frame = cast(cv2.typing.MatLike, self.cam.capture_array("main"))
+        frame = cv2.rotate(frame, cv2.ROTATE_180)
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         if frame is None:
-            return
-        self.frame = self.__undistort_img__(frame)
+            return np.array([[[]]])
+        # self.frame = self.__undistort_img__(frame)
+        self.frame = frame
+        self.debug = frame.copy()
+        cv2.imwrite("test.jpg", self.frame)
+        return self.frame
 
     def __est_pose__(self, detection):
         focal_length = self.int_matrix[0][0]
@@ -68,7 +78,7 @@ class Camera:
         self.get_frame()
         bboxes, _ = self.detector.detect(self.frame)
 
-        bboxes = self.get_valid_detections(bboxes)
+        # bboxes = self.get_valid_detections(bboxes)
         if len(bboxes) == 0:
             return
 
@@ -85,7 +95,7 @@ class Camera:
 
     def __get_lines__(self):
         # filtering frame to get lines
-        gray = cv2.cvtColor(self.frame, cv2.COLOR_RGB2GRAY)
+        gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
         _, thresh = cv2.threshold(blurred, 200, 255, cv2.THRESH_BINARY)
 
@@ -96,6 +106,9 @@ class Camera:
         lines = cv2.HoughLinesP(
             edges, 1, np.pi / 180, threshold=100, minLineLength=100, maxLineGap=10
         )
+
+        for line in lines:
+            cv2.line(self.debug, (line[0], line[1]), (line[2], line[3]), (0, 0, 255))
 
         return lines
 
@@ -165,7 +178,7 @@ class Camera:
 
 
 if __name__ == "__main__":
-    cam = Camera(device=1)
+    cam = Camera()
 
     while True:
         ret = cam.detect_closest()
