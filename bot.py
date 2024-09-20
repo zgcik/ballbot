@@ -1,74 +1,50 @@
-import RPi.GPIO as GPIO
+import time
+import serial
 import numpy as np
 
 from camera import Camera
-from motor import Motor
 
 class Bot:
     def __init__(self):
+        # calibration
+        self.wheel = 0.05
+        self.baseline = 0.0185
+
+        # init robot pose
         self.pose = [0, 0, 0]
 
-        # pin assignments
-        self.pins = {
-            'motora': {
-                'in1': 17,
-                'in2': 27,
-                'ena': 18,
-                'enc': 5
-            },
-            
-            'motorb': {
-                'in3': 22,
-                'in4': 23,
-                'ena': 19,
-                'enc': 12
-            }
-        }
-        
-        # initalizing pins
-        self.setupGPIO()
-
         # init cam
-        self.cam = Camera(device=2)
+        self.cam = Camera(device=0)
 
-        # init motors
-        self.pwm_freq = 10000
+        # setting up arduino communication
+        self.arduino_port = '/dev/ttyACM0'
+        self.baud_rate = 9600
 
-        # motor a: right
-        self.motora = Motor(
-            pwm_freq= self.pwm_freq,
-            in1= self.pins['motora']['in1'],
-            in2= self.pins['motora']['in2'],
-            ena= self.pins['motora']['ena'],
-            enc= self.pins['motora']['enc']
-        )
+    def setup_arduino(self):
+        with serial.Serial(self.arduino_port, self.baud_rate, timeout=1) as ser:
+                # initialise arduino
+                time.sleep(2)
+                ser.flushInput()
+                ser.flushOutput()
 
-        # motor b: left
-        self.motorb = Motor(
-            pwm_freq= self.pwm_freq,
-            in1= self.pins['motorb']['in3'],
-            in2= self.pins['motorb']['in4'],
-            ena= self.pins['motorb']['ena'],
-            enc= self.pins['motorb']['enc']
-        )
+    def send_command(self, command):
+        try:
+            with serial.Serial(self.arduino_port, self.baud_rate, timeout=1) as ser:
+
+                # send command
+                ser.write(f'{command}\n'.encode())
+
+                if ser.in_waiting > 0:
+                    response = ser.readline().decode().strip()
+
+                    return response
+                else:
+                    print('no response from arduino')
+                    return None
+        except serial.SerialException as e:
+            print(f'error in serial communication: {e}')
+            return None    
     
-    def setupGPIO(self):
-        GPIO.setmode(GPIO.BCM)
-
-        GPIO.setup(self.pins['motora']['in1'], GPIO.OUT)
-        GPIO.setup(self.pins['motora']['in2'], GPIO.OUT)
-        GPIO.setup(self.pins['motora']['ena'], GPIO.OUT)
-
-        GPIO.setup(self.pins['motorb']['in3'], GPIO.OUT)
-        GPIO.setup(self.pins['motorb']['in4'], GPIO.OUT)
-        GPIO.setup(self.pins['motorb']['ena'], GPIO.OUT)
-
-        GPIO.setup(self.pins['motora']['enc'], GPIO.IN)
-        GPIO.setup(self.pins['motorb']['enc'], GPIO.IN)
-
-        GPIO.add_event_detect(self.pins['motora']['enc'], GPIO.RISING, callback=self.motora.enc_cb())
-        GPIO.add_event_detect(self.pins['motorb']['enc'], GPIO.RISING, callback=self.motorb.enc_cb())
-
     def update_pose(self, dis, ang):
         if dis > 0:
             self.pose[0] += dis * np.cos(self.pose[2])
@@ -76,8 +52,17 @@ class Bot:
         
         self.pose[2] = (self.pose[2] + ang) % (2 * np.pi)
 
+    def __calc_revs__(self, dis):
+        return dis / self.wheel
+
     def drive(self, dis):
-        pass
+        revs = self.__calc_revs__(dis)
+        self.send_command(f'$Drive: {revs} Rev')
+        self.update_pose(dis, 0)
 
     def rotate(self, ang):
-        pass
+        self.send_command(f'$Turn: {ang} Rad')
+        self.update_pose(0, ang)
+
+    def flip(self):
+        self.send_command(f'$Flip: Theta 180 DT 60')

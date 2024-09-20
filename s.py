@@ -40,10 +40,14 @@ if __name__ == "__main__":
             print(send_command("$Drive: 1 Rev"))
         elif user_input == '2':
             # Call Flip command
-            print(send_command("$Flip Theta 180 DT 45"))
+            print(send_command("$Flip: Theta 180 DT 45"))
         elif user_input.lower() == 'q':
             # Exit the loop
             print("Exiting...")
             break
         else:
             print("Invalid input. Please enter 1, 2, or q to quit.")
+
+
+
+            #Turn: 1.57 Rad
