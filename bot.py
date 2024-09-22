@@ -71,9 +71,53 @@ class Bot:
 
     def __calc_revs__(self, dis):
         return dis / self.wheel
+    
+    def __calc_dis__(self, point):
+        return np.sqrt((point[0] - self.pose[0])**2 + (point[1] - self.pose[1])**2)
+    
+    def __calc_ang__(self, point):
+        ang = np.arctan2(point[1] - self.pose[1], point[0] - self.pose[0])
+        ang = (ang - self.pose[2]) % (2 * np.pi)
+        if ang > np.pi: ang -= 2*np.pi
+        return ang
+    
+    def drive_to_box(self, point):
+        dis = self.__calc_dis__(point)
+        ang = self.__calc_ang__(point)
 
-    def drive(self, dis):
-        response = self.send_command(f'$drive: {self.__calc_revs__(dis)} rev')
+        while dis > 0.2:
+            if abs(ang) > 0.005: self.rotate(ang)
+            self.drive(1.0)
+
+            # recalculating position
+            dis = self.__calc_dis__(point)
+            ang = self.__calc_ang__(point)
+        
+    def drive_to_target(self):
+        # detection threshold
+        cam_min = 0.2
+
+        # detecting balls
+        d, t = self.cam.detect_closest()
+
+        # driving until 20cm away and ball is centered
+        while d > cam_min:
+            try:
+                if abs(t) > 0.005: self.rotate(t)
+                self.drive(0.5)
+                
+                # re-detection
+                d, t = self.cam.detect_closest()
+            except:
+                print('error: ball not found')
+                return None
+        
+        # drive 20cm blind due to camera limitations
+        self.drive(self.__calc_revs__(cam_min))
+        return True
+
+    def drive(self, revs):
+        response = self.send_command(f'$drive: {revs} rev')
         self.update_pose(response)
 
     def rotate(self, ang):
