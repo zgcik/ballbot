@@ -110,8 +110,8 @@ void setup() {
   pinMode(leftEncoderPin, INPUT);
 
   //Servo 
-  myServo.attach(11);  // attach the servo to pin 11
-  myServo.write(4);    // initialize the servo at 0 degrees
+  myServo.attach(5);  // attach the servo to pin 11
+  myServo.write(0);    // initialize the servo at 0 degrees
 
   // attach interrupts for encoder reading
   attachInterrupt(digitalPinToInterrupt(leftEncoderPin), leftEncoderISR, RISING);
