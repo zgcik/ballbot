@@ -1,7 +1,7 @@
 import numpy as np
 from bot import Bot
 
-ball_count = 0
+balls_collected = 0
 
 def explore(bot):
 
@@ -24,7 +24,7 @@ def explore(bot):
     return True
 
 def collection(bot):
-    ball_count = 0
+    balls_collected = 0
 
     while True:
         try:
@@ -38,14 +38,14 @@ def collection(bot):
 
             # TODO: insert ultrasonic module confirmation
 
-            ball_count += 1
-            print(f'arrived at ball {ball_count}')
+            balls_collected += 1
+            print(f'arrived at ball {balls_collected}')
             
         except:
             print('no balls detected: exploring...')
             explore(bot)
         
-        if ball_count == 5:
+        if balls_collected == 5:
             dispose(bot)
             break
 
