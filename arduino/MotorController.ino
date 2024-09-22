@@ -1,15 +1,15 @@
 #include <Servo.h>
 
 // pin definitions
-const int rightEncoderPin = 3; // right motor encoder (interrupt pin)
-const int leftEncoderPin = 2;  // left motor encoder (interrupt pin)
+const int rightEncoderPin = 2; // right motor encoder (interrupt pin)
+const int leftEncoderPin = 3;  // left motor encoder (interrupt pin)
 
-const int rightMotorEN = 10;   // right motor enable (PWM pin)
-const int rightMotorIn1 = 8;   // right motor direction pin 1
+const int rightMotorEN = 11;   // right motor enable (PWM pin)
+const int rightMotorIn1 = 10;   // right motor direction pin 1
 const int rightMotorIn2 = 9;   // right motor direction pin 2
 
-const int leftMotorEN = 5;     // left motor enable (PWM pin)
-const int leftMotorIn1 = 6;    // left motor direction pin 1
+const int leftMotorEN = 6;     // left motor enable (PWM pin)
+const int leftMotorIn1 = 8;    // left motor direction pin 1
 const int leftMotorIn2 = 7;    // left motor direction pin 2
 
 // PID class
