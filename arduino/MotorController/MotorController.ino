@@ -12,6 +12,14 @@ const int leftMotorEN = 6;     // left motor enable (PWM pin)
 const int leftMotorIn1 = 8;    // left motor direction pin 1
 const int leftMotorIn2 = 7;    // left motor direction pin 2
 
+// Define pins for Ultrasonic Sensor
+const int trigPin = 3;      // Trigger pin of the ultrasonic sensor
+const int echoPin = 13;      // Echo pin of the ultrasonic sensor
+
+// Variables for distance measurement and counting
+int distance = 0;
+int count = 0;
+
 // PID class
 class PID{
   private:
@@ -102,6 +110,10 @@ void setup() {
   pinMode(leftMotorIn2, OUTPUT);
   pinMode(leftMotorEN, OUTPUT);
 
+  // Set ultrasonic sensor pins
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+
   // set motors to stopped state at the start
   stopMotors();
 
@@ -168,7 +180,8 @@ void loop() {
         if (rev > 0) {
           drive(rev);  // call the drive function with the extracted number of revolutions
         } else {
-          Serial.println("error: invalid number of revolutions.");
+          //Serial.println("error: invalid number of revolutions.");
+          drive(rev);
         }
       } else {
         Serial.println("error: invalid command format.");
@@ -242,6 +255,48 @@ void loop() {
       Serial.println("error: unrecognized command.");
     }
   }
+
+  // Get the distance from the ultrasonic sensor
+  distance = getDistance();
+  
+  // Print the distance to the Serial Monitor
+  Serial.print("Distance: ");
+  Serial.print(distance);
+  Serial.println(" cm");
+
+  // Check if the distance is less than 30 cm
+  if (distance < 30) {
+    count++;  // Increment count if the distance is less than 30 cm
+  } else {
+    count = 0;  // Reset count if the distance is more than 30 cm
+  }
+
+  // If the count exceeds 5, move the robot backward
+  if (count >= 5) {
+    drive(-2);
+    count = 0;  // Reset count after moving backward
+  }
+
+  // Delay to allow some time between measurements
+  delay(1000);
+}
+
+
+int getDistance() {
+    // Send a pulse to the trigger pin
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
+
+    // Measure the duration of the echo pulse
+    long duration = pulseIn(echoPin, HIGH);
+
+    // Convert the duration to distance in cm
+    int distance = duration * 0.034 / 2;
+  
+    return distance;
 }
 
 // function to drive the robot a certain number of revolutions
@@ -251,7 +306,8 @@ void drive(float revolutions) {
   rightTicks = 0;
   int pwm = 175; // 50%
 
-  while (abs(leftTicks) < targetTicks && abs(rightTicks) < targetTicks) {
+  while (abs(leftTicks) < abs(targetTicks) && abs(rightTicks) < abs(targetTicks)) {
+    if (revolutions > 0){
     // call the PID function to adjust the right motor
     control = linPID.compute(leftTicks, rightTicks);
 
@@ -261,6 +317,19 @@ void drive(float revolutions) {
     // drive motors
     driveLeftMotor(pwm);  // drive left motor at constant speed
     driveRightMotor(control);  // adjust right motor speed based on PID control
+    }
+    else if (revolutions < 0){
+       // call the PID function to adjust the right motor
+      control = linPID.compute(leftTicks, rightTicks);
+
+      // constrain control signal to valid PWM range
+      control = constrain(fabs(control), pwm-5, 255);
+
+      // drive motors
+      driveLeftMotor(-pwm);  // drive left motor at constant speed
+      driveRightMotor(-control);  // adjust right motor speed based on PID control
+
+    }
   }
 
   // output encoder ticks to the serial monitor
@@ -320,17 +389,34 @@ void turn(float radians) {
 
 // function to drive the left motor at constant speed
 void driveLeftMotor(int pwmValue) {
-  digitalWrite(leftMotorIn1, HIGH);
-  digitalWrite(leftMotorIn2, LOW);
-  analogWrite(leftMotorEN, pwmValue);
+  if (pwmValue > 0){
+    digitalWrite(leftMotorIn1, HIGH);
+    digitalWrite(leftMotorIn2, LOW);
+    analogWrite(leftMotorEN, pwmValue);
+  }
+  if (pwmValue < 0){
+    digitalWrite(leftMotorIn1, LOW);
+    digitalWrite(leftMotorIn2, HIGH);
+    analogWrite(leftMotorEN, abs(pwmValue));
+  }
 }
+
 
 // function to adjust right motor speed based on PID
 void driveRightMotor(int pwmValue) {
-  digitalWrite(rightMotorIn1, HIGH);
-  digitalWrite(rightMotorIn2, LOW);
-  analogWrite(rightMotorEN, pwmValue);
+  if (pwmValue > 0){
+    digitalWrite(rightMotorIn1, HIGH);
+    digitalWrite(rightMotorIn2, LOW);
+    analogWrite(rightMotorEN, pwmValue);
+  }
+  if (pwmValue < 0){
+    digitalWrite(rightMotorIn1, LOW);
+    digitalWrite(rightMotorIn2, HIGH);
+    analogWrite(rightMotorEN, abs(pwmValue));
+  }
+
 }
+
 
 // function to stop both motors
 void stopMotors() {
