@@ -20,7 +20,7 @@ class Bot:
         self.arduino_port = '/dev/ttyACM0'
         self.baud_rate = 9600
 
-        self.setup_arduino()
+        #self.setup_arduino()
 
     def setup_arduino(self):
         with serial.Serial(self.arduino_port, self.baud_rate, timeout=1) as ser:
@@ -31,20 +31,19 @@ class Bot:
 
     def send_command(self, command):
         try:
-            with serial.Serial(self.arduino_port, self.baud_rate, timeout=1) as ser:
-                # send command
-                ser.write(f'{command}\n'.encode())
+            with serial.Serial(self.arduino_port, self.baud_rate, timeout=1) as ser:  # Ensure serial connection
+                time.sleep(2)  # Give Arduino time to initialize
+                ser.flushInput()  # Clear input buffer
+                ser.flushOutput()  # Clear output buffer
 
-                # getting response
-                if ser.in_waiting > 0:
-                    response = ser.readline().decode('utf-8').strip()
-                    return response
-                else:
-                    print('no response from arduino')
-                    return None
+                # Send command
+                print(f"Sending command: {command}")
+                ser.write(f"{command}\n".encode())
+                time.sleep(0.5)  # Give Arduino time to process
         except serial.SerialException as e:
-            print(f'error in serial communication: {e}')
-            return None    
+            print(f"Error in serial communication: {e}")
+            return None
+
     
     def update_pose(self, response):
         if response is None: return
@@ -95,34 +94,53 @@ class Bot:
         
     def drive_to_target(self):
         # detection threshold
-        cam_min = 0.2
+        cam_min = 0.08
 
         # detecting balls
-        d, t = self.cam.detect_closest()
-
-        # driving until 20cm away and ball is centered
-        while d > cam_min:
-            try:
-                if abs(t) > 0.005: self.rotate(t)
-                self.drive(0.5)
-                
-                # re-detection
-                d, t = self.cam.detect_closest()
-            except:
-                print('error: ball not found')
-                return None
-        
-        # drive 20cm blind due to camera limitations
-        self.drive(self.__calc_revs__(cam_min))
+        try:
+            d, t = self.cam.detect_closest()
+            # driving until 20cm away and ball is centered
+            while d > cam_min:
+                try:
+                    # if abs(t) > 0.005: self.rotate(t)
+                    self.drive(0.05)
+                    print(f"Distance: {d}, Angle: {t}")
+                    
+                    # re-detection
+                    d, t = self.cam.detect_closest()
+                except:
+                    print('error: ball not found')
+                    return None
+            
+            # drive 20cm blind due to camera limitations
+            #self.drive(self.__calc_revs__(cam_min))
+        except:
+            print("no ballWs found")
         return True
 
     def drive(self, revs):
-        response = self.send_command(f'$drive: {revs} rev')
-        self.update_pose(response)
+        self.send_command(f'$Drive: {revs} Rev')
 
     def rotate(self, ang):
-        response = self.send_command(f'$turn: {ang} rad')
-        self.update_pose(response)
+        self.send_command(f'$Turn: {ang} Rad')
 
     def flip(self):
-        self.send_command(f'$flip: theta 180 DT 60')
+        self.send_command(f'$Flip: Theta 180 DT 60')
+    def collect(self):
+        self.send_command(f'$Collect:')
+
+if __name__ == "__main__":
+    bot = Bot()
+    #bot.drive(0.5)
+    bot.flip()
+    #bot.collect()
+    #bot.flip()
+    while True:
+        # try:
+        d, t = bot.cam.detect_closest()
+        print(f"Distance: {d}, Angle: {t}")
+    #     if (bot.drive_to_target()):
+    #         bot.flip()
+    #         break
+        
+        

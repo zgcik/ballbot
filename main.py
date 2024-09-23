@@ -9,7 +9,7 @@ class Operate:
 
     def explore(self):
         ang_rotate = 0.0
-        target = self.bot.cam.get_closest()
+        target = self.bot.cam.detect_closest()
 
         while target == None:
             print('no balls detected: exploring...')
@@ -22,14 +22,14 @@ class Operate:
                 ang_rotate = 0.0
             
             # re-detecting
-            target = self.bot.cam.get_closest()
+            target = self.bot.cam.detect_closest()
 
     def collection(self):
         while self.ball_num < 5:
             # driving to closest target
             ret = self.bot.drive_to_target()
 
-            if not ret: 
+            if ret is None: 
                 self.explore()
                 continue
 
@@ -54,3 +54,4 @@ class Operate:
 if __name__ == "__main__":
     map = [[0.0, 0.0], [6.4, 0.0], [6.4, -4.1], [0.0, -4.1]]
     operate = Operate(map)
+    operate.collection()
