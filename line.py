@@ -10,6 +10,78 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def set_h(x, self):
+    self.h = x
+
+
+def set_s(x, self):
+    self.s = x
+
+
+def set_v(x, self):
+    self.v = x
+
+
+def set_value(x, self):
+    self.value = x
+
+
+class HsvCalibrator:
+    h: int
+    s: int
+    v: int
+    name: str
+
+    def __init__(
+        self, name: str, show: bool, initial_values: tuple[int, int, int], prefix=""
+    ) -> None:
+        self.name = name
+        self.h = initial_values[0]
+        self.s = initial_values[1]
+        self.v = initial_values[2]
+        if show:
+            cv2.namedWindow(name, cv2.WINDOW_AUTOSIZE)
+            cv2.createTrackbar(
+                f"{prefix} H", name, self.h, 179, lambda x: set_h(x, self)
+            )
+            cv2.createTrackbar(
+                f"{prefix} S", name, self.s, 255, lambda x: set_s(x, self)
+            )
+            cv2.createTrackbar(
+                f"{prefix} V", name, self.v, 255, lambda x: set_v(x, self)
+            )
+
+    def value(self):
+        return np.array([self.h, self.s, self.v])
+
+
+class HsvRangeCalibrator:
+    lower: HsvCalibrator
+    upper: HsvCalibrator
+
+    def __init__(
+        self,
+        name: str,
+        show: bool,
+        initial_lower: tuple[int, int, int],
+        initial_upper: tuple[int, int, int],
+    ) -> None:
+        self.lower = HsvCalibrator(name, show, initial_lower, "lower")
+        self.upper = HsvCalibrator(name, show, initial_upper, "upper")
+
+
+class ParameterCalibrator:
+    value: int
+
+    def __init__(self, name, show, initial_value: int, prefix="", max_val=255) -> None:
+        self.value = initial_value
+        if show:
+            cv2.namedWindow(name)
+            cv2.createTrackbar(
+                f"{prefix} val", name, self.value, max_val, lambda x: set_value(x, self)
+            )
+
+
 def draw_line(img: cv2.typing.MatLike, params: np.ndarray):
     vx = int(params.item(0))
     vy = int(params.item(1))
@@ -25,7 +97,7 @@ def draw_line(img: cv2.typing.MatLike, params: np.ndarray):
 class LineDetector:
     def __init__(self, int_matrix, calibrate=False) -> None:
         self.int_matrix = int_matrix
-        self.range = HsvRangeCalibrator("line", calibrate, (0, 0, 205), (179, 56, 255))
+        self.range = HsvRangeCalibrator("line", calibrate, (0, 0, 230), (179, 56, 255))
         self.open_kernel_size = ParameterCalibrator("contour", calibrate, 3, "open")
         self.close_kernel_size = ParameterCalibrator("contour", calibrate, 29, "close")
         self.contour_threshold = ParameterCalibrator(
@@ -56,6 +128,7 @@ class LineDetector:
         morph = cv2.morphologyEx(morph, cv2.MORPH_CLOSE, kernel)
 
         # find contours
+        return morph
         contours = cv2.findContours(morph, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         contours = contours[0] if len(contours) == 2 else contours[1]
 
