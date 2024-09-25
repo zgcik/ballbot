@@ -70,7 +70,7 @@ class Bot:
             self.state[1] += distance * np.sin(self.state[2])
 
     def __calc_revs__(self, dis):
-        return dis / self.wheel
+        return dis / (np.pi * self.wheel)
     
     def __calc_dis__(self, point):
         return np.sqrt((point[0] - self.state[0])**2 + (point[1] - self.state[1])**2)
