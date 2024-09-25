@@ -67,15 +67,12 @@ class PID{
     }
 };
 
-PID linPID(0.0, 0.01, 0.01);
-PID rotPID(0.0, 0.00, 0.0);
-
 int ticksPerRevolution = 900; // 900 encoder ticks per revolution
 volatile long leftTicks = 0;
 volatile long rightTicks = 0;
 
-float baseline = 0.2;  // default baseline
-float wheelRadius = 0.05415049396898059;  // default wheel radius
+float baseline = 0.0649805927627767*2;  // default baseline
+float wheelRadius = 0.025;  // default wheel radius
 
 Servo myServo;
 
@@ -160,7 +157,7 @@ int getDistance() {
   return distance;
 }
 
-
+PID linPID(5.4, -0.0083, -0.00005);
 void drive(float revolutions) {
   long targetTicks = revolutions * ticksPerRevolution;
   leftTicks = 0;
@@ -173,7 +170,7 @@ void drive(float revolutions) {
       float control = linPID.compute(leftTicks, rightTicks);
 
       // constrain control signal to valid PWM range
-      control = constrain(fabs(control), pwm-50, 255);
+      control = constrain(fabs(control), 100, 250);
 
       // drive motors
       driveLeftMotor(pwm);  // drive left motor at constant speed
@@ -184,7 +181,7 @@ void drive(float revolutions) {
       float control = linPID.compute(leftTicks, rightTicks);
 
       // constrain control signal to valid PWM range
-      control = constrain(fabs(control), pwm-5, 255);
+      control = constrain(fabs(control), pwm-5, 250);
 
       // drive motors
       driveLeftMotor(-pwm);  // drive left motor at constant speed
@@ -199,7 +196,68 @@ void drive(float revolutions) {
   Serial.print(",R:");
   Serial.println((float)rightTicks/(float)ticksPerRevolution);
 
+  Serial.print("error left:");
+  Serial.println(abs((float)leftTicks-(float)targetTicks)/((float)targetTicks));
+
+  Serial.print("error right:");
+  Serial.println(abs((float)rightTicks-(float)targetTicks)/((float)targetTicks));
+
   // stop motors when done
+  stopMotors();
+}
+
+// turn function
+PID rotPID(5.4, 0.0125, -0.015);
+void turn(float radians) {
+  // normalize the angle to [-pi, pi]
+  radians = normalizeAngle(radians);
+  
+  // calculate the number of wheel rotations required to turn the robot by the specified angle
+  float distanceToTravel = (abs(radians) * baseline/2);  // arc length for one wheel
+  float wheelRotations = distanceToTravel / (PI * wheelRadius);  // required wheel rotations
+  long targetTicks = wheelRotations * ticksPerRevolution/2;  // convert to encoder ticks
+
+  // reset the encoder ticks
+  leftTicks = 0;
+  rightTicks = 0;
+
+  int pwm = 130;
+
+  // perform the turn
+  if (radians > 0) {
+    // turning right
+    while (abs(leftTicks) < targetTicks && abs(rightTicks) < targetTicks) {
+      float control = rotPID.compute(abs(leftTicks), abs(rightTicks));
+      control = constrain(abs(control), 75, 250);
+
+      driveLeftMotor(pwm);
+      driveRightMotor(-control);
+      
+    }
+  } else if (radians < 0) {
+    // turning left
+    while (abs(leftTicks) < targetTicks && abs(rightTicks) < targetTicks) {
+      float control = rotPID.compute(abs(leftTicks), abs(rightTicks));
+      control = constrain(abs(control), 75, 250);
+
+      driveLeftMotor(-pwm);
+      driveRightMotor(control);
+    }
+  }
+
+  // output encoder ticks to the serial monitor
+  Serial.print("L:");
+  Serial.print((float)leftTicks/(float)ticksPerRevolution);
+  Serial.print(",R:");
+  Serial.println((float)rightTicks/(float)ticksPerRevolution);
+
+  Serial.print("error left:");
+  Serial.println(abs((float)leftTicks-(float)targetTicks)/((float)targetTicks));
+
+  Serial.print("error right:");
+  Serial.println(abs((float)rightTicks-(float)targetTicks)/((float)targetTicks));
+
+  // stop both motors after the turn is completed
   stopMotors();
 }
 
@@ -253,59 +311,6 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(rightEncoderPin), rightEncoderISR, RISING);
 
   Serial.begin(9600); // initialize serial communication at 9600 baud
-}
-
-
-// turn function
-void turn(float radians) {
-  // normalize the angle to [-pi, pi]
-  radians = normalizeAngle(radians);
-  
-  // calculate the number of wheel rotations required to turn the robot by the specified angle
-  float distanceToTravel = (fabs(radians) * baseline);  // arc length for one wheel
-  float wheelRotations = distanceToTravel / (2 * PI * wheelRadius);  // required wheel rotations
-  long targetTicks = wheelRotations * ticksPerRevolution;  // convert to encoder ticks
-
-  // reset the encoder ticks
-  leftTicks = 0;
-  rightTicks = 0;
-
-  int pwm = 150;
-
-  // perform the turn
-  if (radians > 0) {
-    // turning right
-    while (abs(leftTicks) < targetTicks && abs(rightTicks) < targetTicks) {
-      float control = rotPID.compute(abs(leftTicks), abs(rightTicks));
-      control = constrain(fabs(control), 0, 255);
-
-      driveRightMotor(-control);   // move right motor
-      driveLeftMotor(pwm);  // move left motor
-      
-    }
-  } else if (radians < 0) {
-    // turning left
-    while (abs(leftTicks) < targetTicks && abs(rightTicks) < targetTicks) {
-      float control = rotPID.compute(abs(leftTicks), abs(rightTicks));
-      control = constrain(fabs(control), 0, 255);
-
-      driveLeftMotor(-pwm);  // move left motor
-      driveRightMotor(control);     // move right motor
-    }
-  }
-
-  // output encoder ticks to the serial monitor
-  Serial.print("L:");
-  Serial.print((float)leftTicks/(float)ticksPerRevolution);
-  Serial.print(",R:");
-  Serial.println((float)rightTicks/(float)ticksPerRevolution);
-
-  // stop both motors after the turn is completed
-  stopMotors();
-}
-
-void drivelr(float left, float right){
-
 }
 
 void loop() {

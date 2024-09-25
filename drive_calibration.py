@@ -45,11 +45,11 @@ def wheel_calibration(bot):
 
 
 def baseline_calibration(bot):
-    test_vals = [np.pi, 2*np.pi, 3*np.pi, 4*np.pi]  # Target angles to turn
+    test_vals = [np.pi/2, np.pi, 2*np.pi, 3*np.pi, 4*np.pi]  # Target angles to turn
     ang_out = []  # List to store the input angles that successfully turned the robot the target angle
 
     for val in test_vals:
-        print(f'target: turn the robot {val} deg')
+        print(f'target: turn the robot {np.degrees(val)} deg')
 
         while True:
             u_input = input('input the angle to turn the robot (in deg): ')
@@ -61,7 +61,7 @@ def baseline_calibration(bot):
 
             bot.rotate(u_input)
 
-            user_in = input(f'did the robot turn {val} radians? [y/N] ').strip().lower()
+            user_in = input(f'did the robot turn {np.degrees(val)} radians? [y/N] ').strip().lower()
             if user_in == 'y':
                 ang_out.append(u_input)
                 print(f'recording that the robot turned {val} radians with input angle {u_input}')
@@ -90,5 +90,5 @@ def baseline_calibration(bot):
 
 if __name__ == "__main__":
     bot = Bot()
-    wheel_calibration(bot)
-    # baseline_calibration(bot)
+    # wheel_calibration(bot)
+    baseline_calibration(bot)
