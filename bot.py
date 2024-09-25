@@ -10,8 +10,8 @@ class Bot:
         self.wheel = 0.05
         self.baseline = 0.0185
 
-        # init robot pose
-        self.pose = [0.0, 0.0, 0.0]
+        # init robot state
+        self.state = [0.0, 0.0, 0.0]
 
         # init cam
         self.cam = Camera(device=0)
@@ -45,7 +45,7 @@ class Bot:
             return None
 
     
-    def update_pose(self, response):
+    def update_state(self, response):
         if response is None: return
 
         # obtaining arduino response values
@@ -61,22 +61,22 @@ class Bot:
         distance = (delta_left + delta_right) / 2
 
         # update theta
-        self.pose[2] = (self.pose[2] + ang) % (2 * np.pi)
+        self.state[2] = (self.state[2] + ang) % (2 * np.pi)
 
-        # update pose
+        # update state
         if distance > 0:
-            self.pose[0] += distance * np.cos(self.pose[2])
-            self.pose[1] += distance * np.sin(self.pose[2])
+            self.state[0] += distance * np.cos(self.state[2])
+            self.state[1] += distance * np.sin(self.state[2])
 
     def __calc_revs__(self, dis):
-        return dis / self.wheel
+        return dis / (np.pi * self.wheel)
     
     def __calc_dis__(self, point):
-        return np.sqrt((point[0] - self.pose[0])**2 + (point[1] - self.pose[1])**2)
+        return np.sqrt((point[0] - self.state[0])**2 + (point[1] - self.state[1])**2)
     
     def __calc_ang__(self, point):
-        ang = np.arctan2(point[1] - self.pose[1], point[0] - self.pose[0])
-        ang = (ang - self.pose[2]) % (2 * np.pi)
+        ang = np.arctan2(point[1] - self.state[1], point[0] - self.state[0])
+        ang = (ang - self.state[2]) % (2 * np.pi)
         if ang > np.pi: ang -= 2*np.pi
         return ang
     
@@ -119,10 +119,12 @@ class Bot:
         return True
 
     def drive(self, revs):
-        self.send_command(f'$Drive: {revs} Rev')
+        response = self.send_command(f'$drive: {revs} rev')
+        self.update_state(response)
 
     def rotate(self, ang):
-        self.send_command(f'$Turn: {ang} Rad')
+        response = self.send_command(f'$turn: {ang} rad')
+        self.update_state(response)
 
     def flip(self):
         self.send_command(f'$Flip: Theta 180 DT 60')
