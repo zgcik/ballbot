@@ -37,6 +37,7 @@ def wheel_calibration(bot):
     else:
         scale = None
 
+    print(f'average scale: {scale} m')
     return scale
 
     
@@ -50,18 +51,37 @@ def baseline_calibration(bot):
         print(f'turning {val} rads')
         
         while True:
-            revs_in = input('input the number of revs to drive')
+            revs_in = input('input the number of revs to turn')
             try:
                 revs_in = float(revs_in)
             except ValueError:
                 print('revs must be a number')
                 continue
 
-            bot.rotate(val)
+            bot.send_command(f'$drivelr: {revs_in, -revs_in} rev')
 
             user_in = input(f'did the robot turn {val} rads ? [y/N]').strip().lower()
             if user_in == 'y':
                 revs_out.append(revs_in)
+                print(f'recording that the robot turned {val} rads in {revs_in} revs')
+                break
+    
+    # calculate the average wheelbase using the revolutions and angle
+    total_baseline = 0
+    for i in range(len(test_vals)):
+        if revs_out[i] > 0:
+            wheel_diameter = bot.wheel
+            baseline = (test_vals[i] * wheel_diameter) / revs_out[i]
+            total_baseline += baseline
+
+    # calculate the average baseline
+    if len(revs_out) > 0:
+        ave_baseline = total_baseline / len(revs_out)
+    else:
+        ave_baseline = None
+
+    print(f'average baseline: {ave_baseline} m')
+    return ave_baseline
 
 
 if __name__ == "__main__":
