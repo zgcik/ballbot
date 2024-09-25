@@ -7,14 +7,15 @@ from camera import Camera
 class Bot:
     def __init__(self):
         # calibration
-        self.wheel = 0.05
-        self.baseline = 0.0185
+        self.wheel = 0.05415049396898059
+        self.baseline = 0.023
 
         # init robot state
         self.state = [0.0, 0.0, 0.0]
 
         # init cam
-        self.cam = Camera(device=0)
+        # self.cam = Camera(device=0)
+        self.cam = None
 
         # setting up arduino communication
         self.arduino_port = '/dev/ttyACM0'
@@ -102,9 +103,9 @@ class Bot:
             # driving until 20cm away and ball is centered
             while d > cam_min:
                 try:
-                    # if abs(t) > 0.005: self.rotate(t)
+                    if abs(t) > 0.005: self.rotate(t)
                     self.drive(0.05)
-                    print(f"Distance: {d}, Angle: {t}")
+                    print(f"distance: {d}, angle: {t}")
                     
                     # re-detection
                     d, t = self.cam.detect_closest()
@@ -115,7 +116,7 @@ class Bot:
             # drive 20cm blind due to camera limitations
             #self.drive(self.__calc_revs__(cam_min))
         except:
-            print("no ballWs found")
+            print("no balls found")
         return True
 
     def drive(self, revs):
@@ -127,22 +128,10 @@ class Bot:
         self.update_state(response)
 
     def flip(self):
-        self.send_command(f'$Flip: Theta 180 DT 60')
-    def collect(self):
-        self.send_command(f'$Collect:')
-
+        self.send_command(f'$flip: theta 180 DT 60')
+        
+        
 if __name__ == "__main__":
     bot = Bot()
-    #bot.drive(0.5)
-    bot.flip()
-    #bot.collect()
-    #bot.flip()
-    while True:
-        # try:
-        d, t = bot.cam.detect_closest()
-        print(f"Distance: {d}, Angle: {t}")
-    #     if (bot.drive_to_target()):
-    #         bot.flip()
-    #         break
-        
-        
+    bot.rotate(np.pi)
+

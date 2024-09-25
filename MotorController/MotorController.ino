@@ -75,7 +75,7 @@ volatile long leftTicks = 0;
 volatile long rightTicks = 0;
 
 float baseline = 0.2;  // default baseline
-float wheelRadius = 0.025;  // default wheel radius
+float wheelRadius = 0.05415049396898059;  // default wheel radius
 
 Servo myServo;
 
@@ -270,23 +270,24 @@ void turn(float radians) {
   leftTicks = 0;
   rightTicks = 0;
 
-  int pwm = 175;
+  int pwm = 150;
 
   // perform the turn
   if (radians > 0) {
     // turning right
     while (abs(leftTicks) < targetTicks && abs(rightTicks) < targetTicks) {
       float control = rotPID.compute(abs(leftTicks), abs(rightTicks));
-      control = constrain(fabs(control), pwm-50, 255);
+      control = constrain(fabs(control), 0, 255);
 
-      driveLeftMotor(pwm);  // move left motor
       driveRightMotor(-control);   // move right motor
+      driveLeftMotor(pwm);  // move left motor
+      
     }
   } else if (radians < 0) {
     // turning left
     while (abs(leftTicks) < targetTicks && abs(rightTicks) < targetTicks) {
       float control = rotPID.compute(abs(leftTicks), abs(rightTicks));
-      control = constrain(fabs(control), pwm-50, 255);
+      control = constrain(fabs(control), 0, 255);
 
       driveLeftMotor(-pwm);  // move left motor
       driveRightMotor(control);     // move right motor
@@ -301,6 +302,10 @@ void turn(float radians) {
 
   // stop both motors after the turn is completed
   stopMotors();
+}
+
+void drivelr(float left, float right){
+
 }
 
 void loop() {

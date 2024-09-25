@@ -1,4 +1,5 @@
 import numpy as np
+import os
 from bot import Bot
 
 def wheel_calibration(bot):
@@ -38,51 +39,56 @@ def wheel_calibration(bot):
         scale = None
 
     print(f'average scale: {scale} m')
-    return scale
 
-    
+    script_dir = os.path.dirname(__file__)
+    np.save(os.path.join(script_dir, "calibration", "wheel.npy"), scale)
 
 
 def baseline_calibration(bot):
-    test_vals = [np.pi, 2*np.pi, 3*np.pi, 4*np.pi]
-    revs_out = []
+    test_vals = [np.pi, 2*np.pi, 3*np.pi, 4*np.pi]  # Target angles to turn
+    ang_out = []  # List to store the input angles that successfully turned the robot the target angle
 
     for val in test_vals:
-        print(f'turning {val} rads')
-        
+        print(f'target: turn the robot {val} deg')
+
         while True:
-            revs_in = input('input the number of revs to turn')
+            u_input = input('input the angle to turn the robot (in deg): ')
             try:
-                revs_in = float(revs_in)
+                u_input = np.radians(float(u_input))
             except ValueError:
-                print('revs must be a number')
+                print('input must be a number')
                 continue
 
-            bot.send_command(f'$drivelr: {revs_in, -revs_in} rev')
+            bot.rotate(u_input)
 
-            user_in = input(f'did the robot turn {val} rads ? [y/N]').strip().lower()
+            user_in = input(f'did the robot turn {val} radians? [y/N] ').strip().lower()
             if user_in == 'y':
-                revs_out.append(revs_in)
-                print(f'recording that the robot turned {val} rads in {revs_in} revs')
-                break
+                ang_out.append(u_input)
+                print(f'recording that the robot turned {val} radians with input angle {u_input}')
+                break 
     
-    # calculate the average wheelbase using the revolutions and angle
     total_baseline = 0
     for i in range(len(test_vals)):
-        if revs_out[i] > 0:
-            wheel_diameter = bot.wheel
-            baseline = (test_vals[i] * wheel_diameter) / revs_out[i]
-            total_baseline += baseline
+        wheel_diameter = bot.wheel
+        target_angle = test_vals[i]
+        input_angle = ang_out[i]
 
-    # calculate the average baseline
-    if len(revs_out) > 0:
-        ave_baseline = total_baseline / len(revs_out)
+        baseline = (target_angle * wheel_diameter) / input_angle
+        total_baseline += baseline
+
+    # Calculate the average baseline
+    if len(ang_out) > 0:
+        ave_baseline = total_baseline / len(ang_out)
     else:
         ave_baseline = None
 
     print(f'average baseline: {ave_baseline} m')
-    return ave_baseline
+
+    script_dir = os.path.dirname(__file__)
+    np.save(os.path.join(script_dir, "calibration", "baseline.npy"), ave_baseline)
 
 
 if __name__ == "__main__":
     bot = Bot()
+    wheel_calibration(bot)
+    # baseline_calibration(bot)
