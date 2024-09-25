@@ -9,7 +9,6 @@ from line import LineDetector
 
 try:
     from picamera2 import Picamera2  # type: ignore
-
     pi = True
 except ImportError:
     pi = False
@@ -129,68 +128,6 @@ class Camera:
 
         return (dis_min, theta_min)
 
-    # def __get_lines__(self):
-    #     # filtering frame to get lines
-    #     gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
-    #     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    #     _, thresh = cv2.threshold(blurred, 200, 255, cv2.THRESH_BINARY)
-
-    #     # canny edge detection
-    #     edges = cv2.Canny(thresh, 50, 150, apertureSize=3)
-
-    #     # hough line detection
-    #     lines = cv2.HoughLinesP(
-    #         edges, 1, np.pi / 180, threshold=100, minLineLength=100, maxLineGap=10
-    #     )
-
-    #     for line in lines:
-    #         cv2.line(self.debug, (line[0], line[1]), (line[2], line[3]), (0, 0, 255))
-
-    #     return lines
-
-    # def __line_equation__(self, x1, y1, x2, y2):
-    #     a = y2 - y1
-    #     b = x1 - x2
-    #     c = -(a * x1 + b * y1)
-    #     return a, b, c # in form ax + by + c = 0
-
-    # def __find_intersection__(self, line1, line2):
-    #     a1, b1, c1 = line1
-    #     a2, b2, c2 = line2
-
-    #     det = a1 * b2 - a2 * b1
-    #     if det == 0:
-    #         return None
-    #     else:
-    #         x = (b2 * c1 - b2 * c2) / det
-    #         y = (a1 * c2 - a2 * c1) / det
-    #         return (x, y)
-
-    # def boundary_check(self):
-    #     # updating frame
-    #     self.get_frame()
-
-    #     # finding the lines in frame
-    #     lines = self.__get_lines__()
-
-    #     if lines is not None:
-    #         for i, line1 in enumerate(lines):
-    #             x1, y1, x2, y2 = line1[0]
-    #             line1_eq = self.__line_equation__(x1, y1, x2, y2)
-
-    #             for j, line2 in enumerate(lines):
-    #                 if i == j:
-    #                     continue
-
-    #                 x3, y3, x4, y4 = line2[0]
-    #                 line2_eq = self.__line_equation__(x3, y3, x4, y4)
-
-    #                 intersection = self.__find_intersection__(line1_eq, line2_eq)
-    #                 if intersection:
-    #                     return intersection
-    #                 else:
-    #                     return None
-
     def get_valid_detections(self, bboxes):
         """Filters out detections that are above the line
 
@@ -236,4 +173,4 @@ if __name__ == "__main__":
                 last = int(time.time())
         except:
             # print("no balls found")
-            ...
+            pass
