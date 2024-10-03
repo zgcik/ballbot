@@ -90,5 +90,5 @@ def baseline_calibration(bot):
 
 if __name__ == "__main__":
     bot = Bot()
-    # wheel_calibration(bot)
-    baseline_calibration(bot)
+    wheel_calibration(bot)
+    # baseline_calibration(bot)

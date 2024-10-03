@@ -6,45 +6,80 @@ from camera import Camera
 
 class Bot:
     def __init__(self):
-        # calibration
+        # Calibration
         self.wheel = 0.05415049396898059
         self.baseline = 0.023
 
-        # init robot state
+        # Init robot state
         self.state = [0.0, 0.0, 0.0]
 
-        # init cam
-        # self.cam = Camera(device=0)
-        self.cam = None
+        # Init cam
+        self.cam = Camera(device=0)
 
-        # setting up arduino communication
+        # Setting up Arduino communication
         self.arduino_port = '/dev/ttyACM0'
         self.baud_rate = 9600
 
-        #self.setup_arduino()
+        # Open the serial connection during initialization
+        self.ser = None
+        self.setup_arduino()
+
+        self.d = 1000
 
     def setup_arduino(self):
-        with serial.Serial(self.arduino_port, self.baud_rate, timeout=1) as ser:
-                # initialise arduino
-                time.sleep(2)
-                ser.flushInput()
-                ser.flushOutput()
+        try:
+            self.ser = serial.Serial(self.arduino_port, self.baud_rate, timeout=1)
+            time.sleep(2)  # Give Arduino time to initialize
+            self.ser.flushInput()
+            self.ser.flushOutput()
+        except serial.SerialException as e:
+            print(f"Error in serial communication setup: {e}")
+            self.ser = None
 
     def send_command(self, command):
-        try:
-            with serial.Serial(self.arduino_port, self.baud_rate, timeout=1) as ser:  # Ensure serial connection
-                time.sleep(2)  # Give Arduino time to initialize
-                ser.flushInput()  # Clear input buffer
-                ser.flushOutput()  # Clear output buffer
-
+        if self.ser is None:
+            print("Serial connection not established.")
+            return None
+        while True:
+            try:
                 # Send command
                 print(f"Sending command: {command}")
-                ser.write(f"{command}\n".encode())
+                self.ser.write(f"{command}\n".encode())
                 time.sleep(0.5)  # Give Arduino time to process
-        except serial.SerialException as e:
-            print(f"Error in serial communication: {e}")
+
+                # Call received to read the response
+                return self.received()
+
+            except serial.SerialException as e:
+                print(f"Error in serial communication: {e}")
+                time.sleep(0.5)
+                self.setup_arduino()
+                return None
+
+    def received(self):
+        """Listens to the serial and checks for '$done' message with a timeout of 2 seconds."""
+        if self.ser is None:
             return None
 
+        start_time = time.time()  # Record the current time to track timeout
+        timeout_duration = 2  # Timeout after 2 seconds
+
+        while True:
+            if self.ser.in_waiting > 0:  # Check if data is available to read
+                response = self.ser.readline().decode().strip()
+                print(f"Received: {response}")  # Print the received response for debugging
+                if "$done" in response:  # Check if $done is part of the response
+                    print("Command complete.")
+                    return response
+                else:
+                    return response
+
+            # Check if the loop has exceeded the timeout duration
+            if time.time() - start_time > timeout_duration:
+                print("Timeout: No response from Arduino after 2 seconds.")
+                return "Timeout"
+
+            time.sleep(0.1)  # Small delay to prevent CPU overload
     
     def update_state(self, response):
         if response is None: return
@@ -71,6 +106,9 @@ class Bot:
 
     def __calc_revs__(self, dis):
         return dis / (np.pi * self.wheel)
+
+    def __revs_to_dis__(self, revs):
+        return revs * (np.pi * self.wheel)
     
     def __calc_dis__(self, point):
         return np.sqrt((point[0] - self.state[0])**2 + (point[1] - self.state[1])**2)
@@ -94,44 +132,82 @@ class Bot:
             ang = self.__calc_ang__(point)
         
     def drive_to_target(self):
-        # detection threshold
-        cam_min = 0.08
-
-        # detecting balls
-        try:
-            d, t = self.cam.detect_closest()
-            # driving until 20cm away and ball is centered
-            while d > cam_min:
-                try:
-                    if abs(t) > 0.005: self.rotate(t)
-                    self.drive(0.05)
-                    print(f"distance: {d}, angle: {t}")
-                    
-                    # re-detection
-                    d, t = self.cam.detect_closest()
-                except:
-                    print('error: ball not found')
-                    return None
+        while True: #True
+            try:
+                time.sleep(1)
+                d, t = self.cam.detect_closest()
+            except:
+                print('error: ball not found')
+                return False
             
-            # drive 20cm blind due to camera limitations
-            #self.drive(self.__calc_revs__(cam_min))
-        except:
-            print("no balls found")
-        return True
+            print(f"distance: {d}, angle: {t}")
+            if abs(t) > 0.15: self.rotate(t/4)
+
+            print(d <= 0.2 and abs(t) < 0.2)
+            if d > 0.5 + self.__revs_to_dis__(0.5):
+                self.drive(0.5)
+                print(3)
+            elif d > 0.2:
+                self.drive(0.25)
+                print(2)
+            elif d <= 0.2 and abs(t) < 0.2:
+                # self.drive(0.25) #self.__calc_revs__(0.2)
+                # self.collect()
+                # time.sleep(2)
+                print(1)
+                return True
+            time.sleep(1.5) 
 
     def drive(self, revs):
-        response = self.send_command(f'$drive: {revs} rev')
-        self.update_state(response)
+        self.send_command(f'$drive: {revs} rev')
+        self.state[0] += self.__revs_to_dis__(revs) * np.cos(self.state[2])  # x position
+        self.state[1] += self.__revs_to_dis__(revs) * np.sin(self.state[2])  # y position
 
+        
     def rotate(self, ang):
-        response = self.send_command(f'$turn: {ang} rad')
-        self.update_state(response)
+        self.send_command(f'$turn: {ang} rad')
+        self.state[2] = (self.state[2] + ang) % (2 * np.pi)
 
-    def flip(self):
-        self.send_command(f'$flip: theta 180 DT 60')
+
+    def flip(self,ang,dt):
+        self.send_command(f'$flip: theta {ang} dt {dt}')
+
+
+    def collect(self):
+        self.send_command(f'$collect: 650 dt')
+
+
+    def storage(self):
+        self.send_command(f'$storage: 3500 dt')
+
         
         
 if __name__ == "__main__":
     bot = Bot()
-    bot.rotate(np.pi)
+    # bot.rotate(1)
+    
+    #bot.drive(1)
+    # bot.collect()
+
+    ang = 0
+    while True:
+        
+        bot.drive_to_target()
+        bot.rotate(0.08)
+        ang += 0.08
+            
+
+        if ang > 6.28319:
+            break
+        
+        
+            
+
+    
+    
+    
+
+
+
+    
 
