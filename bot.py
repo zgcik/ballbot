@@ -25,6 +25,7 @@ class Bot:
         self.setup_arduino()
 
         self.d = 1000
+        self.t = 1000
 
     def setup_arduino(self):
         try:
@@ -70,8 +71,6 @@ class Bot:
                 print(f"Received: {response}")  # Print the received response for debugging
                 if "$done" in response:  # Check if $done is part of the response
                     print("Command complete.")
-                    return response
-                else:
                     return response
 
             # Check if the loop has exceeded the timeout duration
@@ -132,29 +131,34 @@ class Bot:
             ang = self.__calc_ang__(point)
         
     def drive_to_target(self):
+        self.d = 1000
+        self.t = 1000
         while True: #True
             try:
-                time.sleep(1)
+                time.sleep(2)
                 d, t = self.cam.detect_closest()
+                self.d = d
+                self.t = t
             except:
                 print('error: ball not found')
-                return False
-            
+                if self.d <= 0.2 and abs(self.t) < 0.2:
+                    return True
+                else:
+                    return False
             print(f"distance: {d}, angle: {t}")
-            if abs(t) > 0.15: self.rotate(t/4)
-
+            if abs(t) > 0.15: 
+                self.rotate(t/4)
             print(d <= 0.2 and abs(t) < 0.2)
-            if d > 0.5 + self.__revs_to_dis__(0.5):
+            if d >= 1:
+                self.drive(1)
+            elif d >= 0.5 and d < 1:
                 self.drive(0.5)
-                print(3)
-            elif d > 0.2:
+            elif d > 0.35:
                 self.drive(0.25)
-                print(2)
+            elif d > 0.2 and d < 0.35:
+                self.drive(0.35)
+                return True
             elif d <= 0.2 and abs(t) < 0.2:
-                # self.drive(0.25) #self.__calc_revs__(0.2)
-                # self.collect()
-                # time.sleep(2)
-                print(1)
                 return True
             time.sleep(1.5) 
 

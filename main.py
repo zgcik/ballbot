@@ -16,10 +16,9 @@ class Operate:
             print('no balls detected: exploring...')
             self.bot.rotate(np.pi/16)
             ang_rotate += np.pi/16
-            
             if ang_rotate == 2*np.pi:
-                self.bot.rotate(np.pi/16)
-                self.bot.drive(1.0)
+                self.bot.rotate(np.pi/4)
+                self.bot.drive(3.0)
                 ang_rotate = 0.0
             time.sleep(1)
             # re-detecting
@@ -29,7 +28,7 @@ class Operate:
         while self.ball_num < 2:#5:
             # driving to closest target
             ret = self.bot.drive_to_target()
-            
+            print(f'our boy d: {self.bot.d}, our boy t: {self.bot.t}, ')
 
             if not ret: 
                 self.explore()

@@ -88,7 +88,6 @@ class Camera:
         for i, detection in enumerate(bboxes):
             print(detection)
             dis, theta = self.__est_pose__(detection)
-
             if i == 0 or dis < dis_min:
                 dis_min = dis
                 theta_min = theta
