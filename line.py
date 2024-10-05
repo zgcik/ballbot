@@ -91,7 +91,7 @@ def draw_line(img: cv2.typing.MatLike, params: np.ndarray):
 class LineDetector:
     def __init__(self, int_matrix, calibrate=False) -> None:
         self.int_matrix = int_matrix
-        self.range = HsvRangeCalibrator("line", calibrate, (0, 0, 230), (179, 56, 255))
+        self.range = HsvRangeCalibrator("line", calibrate, (0, 0, 240), (179, 56, 255))
         self.open_kernel_size = ParameterCalibrator("contour", calibrate, 3, "open")
         self.close_kernel_size = ParameterCalibrator("contour", calibrate, 29, "close")
         self.contour_threshold = ParameterCalibrator(

@@ -64,10 +64,10 @@ class Camera:
         # this outputs in RGB (not BGR like cv2 video capture)
         if pi:
             frame = cast(cv2.typing.MatLike, self.cam.capture_array("main"))  # type: ignore
+            frame = cv2.rotate(frame, cv2.ROTATE_180)
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         else:
             ret, frame = self.cam.read()
-        frame = cv2.rotate(frame, cv2.ROTATE_180)
-        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         if frame is None:
             return np.array([[[]]])
         # self.frame = self.__undistort_img__(frame)
@@ -92,6 +92,24 @@ class Camera:
         theta = -np.arctan(x_shift / focal_length)
 
         return dis, theta
+
+    def detect_box(self):
+        self.get_frame()
+        detections = self.detector.detect(self.frame)
+
+        if len(detections) == 0:
+            return
+
+        valid_box_detection = self.get_valid_box_detections(detections)
+
+        if valid_box_detection is None:
+            return
+
+        if self.debug is not None:
+            x1, y1, x2, y2 = list(map(int, valid_box_detection[2]))
+            cv2.rectangle(self.debug, (x1, y1), (x2, y2), (255, 0, 0), 2)
+
+        return valid_box_detection
 
     def detect_closest(self):
         self.get_frame()
@@ -118,6 +136,7 @@ class Camera:
 
         return (dis_min, theta_min)
 
+    # Finds ball detections that have no white line below the bottom of its bbox
     def get_valid_ball_detections(self, detections: list[Detection]) -> list[Detection]:
         mask = self.line.detect(self.frame)
         if not pi:
@@ -136,15 +155,39 @@ class Camera:
 
         return valid_bboxes
 
+    # Finds box detections that have no white line below the midpoint of the bottom of its bbox
+    # This is minimise spurious detections of bags and shit that will be outside the court
+    # while keeping in mind that some of the collection box will overlap with the court lines (but the middle of the bbox shouldn't, hopefully)
+    # Returns none if there are no "valid" boxes
+    def get_valid_box_detections(
+        self, detections: list[Detection]
+    ) -> Optional[Detection]:
+        mask = self.line.detect(self.frame)
+        if not pi:
+            cv2.imshow("mask", mask)
+            cv2.waitKey(1)
+
+        for detection in detections:
+            if detection[0] != "box":
+                continue
+            x1, y1, x2, y2 = list(map(int, detection[2]))
+            image_below = mask[y2:, (x1 + x2) // 2]
+            line_exists = np.any(image_below)
+            if not line_exists:
+                return detection
+
+        return None
+
 
 if __name__ == "__main__":
     cam = Camera()
 
     while True:
         ret = cam.detect_closest()
+        cam.detect_box()
 
         if not pi:
-            cv2.imshow("frame", cam.frame)
+            cv2.imshow("frame", cam.debug)
             cv2.waitKey(1)
 
         # try:
