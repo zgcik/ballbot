@@ -1,13 +1,7 @@
 from typing import Optional
 import cv2
 
-from collections import deque
 import numpy as np
-
-import logging
-
-
-logger = logging.getLogger(__name__)
 
 
 def set_h(x, self):
@@ -114,8 +108,6 @@ class LineDetector:
         mask = cv2.inRange(
             frame_hsv, self.range.lower.value(), self.range.upper.value()
         )
-        if debug_frame is not None:
-            cv2.imshow("linemask", mask)
 
         # cleaning up noise
         kernel = cv2.getStructuringElement(
@@ -126,6 +118,8 @@ class LineDetector:
             cv2.MORPH_RECT, (self.close_kernel_size.value, self.close_kernel_size.value)
         )
         morph = cv2.morphologyEx(morph, cv2.MORPH_CLOSE, kernel)
+        if debug_frame is not None:
+            cv2.imshow("linemorph", morph)
 
         # find contours
         return morph
