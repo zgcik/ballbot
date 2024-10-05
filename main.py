@@ -29,30 +29,50 @@ class Operate:
     def collection(self):
         while self.ball_num < 5:#5:
             # driving to closest target
-            ret = self.bot.drive_to_target()
-
-            if not ret: 
-                self.explore()
-                continue
-            # collecting the ball
-            else:
+            if self.bot.drive_to_target():
                 # iterating number of balls
-                
                 self.ball_num += 1
                 print(f'ball #{self.ball_num}: arrived.')
                 self.bot.collect()
                 print(f'ball #{self.ball_num}: collected.')
                 self.ang_rotate = 0
+            else:
+                self.explore()
+                continue
+
+            # driving to closest target
+            # ret = self.bot.drive_to_target()
+
+            # if not ret: 
+            #     self.explore()
+            #     continue
+            # # collecting the ball
+            # else:
+            #     # iterating number of balls
+                
+            #     self.ball_num += 1
+            #     print(f'ball #{self.ball_num}: arrived.')
+            #     self.bot.collect()
+            #     print(f'ball #{self.ball_num}: collected.')
+            #     self.ang_rotate = 0
 
         self.dispose()
 
     def dispose(self):
-        # driving to relative location of box ( change to location of box )
+        # driving to relative location of box
         self.bot.drive_to_box(self.box_c)
 
-        # self.bot.drive_to_location([0,0])
+        # rotating storage to box
+        self.bot.rotate(self.clamp_angle(np.pi - self.bot.state[2]))
 
+        # releasing storage
         self.bot.storage()
+    
+    @staticmethod
+    def clamp_angle(ang):
+        ang = ang % (2 * np.pi)
+        if ang > np.pi: ang -= 2*np.pi
+        return ang
 
         
 if __name__ == "__main__":
