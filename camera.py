@@ -1,3 +1,4 @@
+import time
 from typing import Optional, cast
 import cv2
 import os
@@ -183,12 +184,15 @@ if __name__ == "__main__":
     cam = Camera()
 
     while True:
+        t = time.time()
         ret = cam.detect_closest()
         cam.detect_box()
 
         if not pi:
             cv2.imshow("frame", cam.debug)
             cv2.waitKey(1)
+
+        print(f"Time taken: {time.time() - t}s")
 
         # try:
         #     d, th = ret
