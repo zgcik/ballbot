@@ -33,37 +33,30 @@ class Operate:
                 # iterating number of balls
                 self.ball_num += 1
                 print(f'ball #{self.ball_num}: arrived.')
-                self.bot.collect()
+                self.bot.collect(80)
                 print(f'ball #{self.ball_num}: collected.')
                 self.ang_rotate = 0
             else:
                 self.explore()
                 continue
 
-            # driving to closest target
-            # ret = self.bot.drive_to_target()
 
-            # if not ret: 
-            #     self.explore()
-            #     continue
-            # # collecting the ball
-            # else:
-            #     # iterating number of balls
-                
-            #     self.ball_num += 1
-            #     print(f'ball #{self.ball_num}: arrived.')
-            #     self.bot.collect()
-            #     print(f'ball #{self.ball_num}: collected.')
-            #     self.ang_rotate = 0
 
         self.dispose()
 
     def dispose(self):
         # driving to relative location of box
-        self.bot.drive_to_box(self.box_c)
-
-        # rotating storage to box
-        self.bot.rotate(self.clamp_angle(np.pi - self.bot.state[2]))
+        # self.bot.drive_to_box(self.box_c)
+        # d = 10
+        # while d>10:
+        #     d, t = self.bot.get_box()
+        while True:
+            if not self.bot.drive_to_box_vis():
+                self.bot.rotate(0.15)
+            else:
+                break
+        # # rotating storage to box
+        # self.bot.rotate(self.clamp_angle(np.pi - self.bot.state[2]))
 
         # releasing storage
         self.bot.storage()
@@ -76,12 +69,14 @@ class Operate:
 
         
 if __name__ == "__main__":
-    
+    map = [[0.0, 0.0], [5.5, 0.0], [5.5, 4.11], [0.0, 4.11]]
+    box_c = [4.11,5.5]
+    #b = [1,0]
+    operate = Operate(map, box_c)
     try:
-        map = [[0.0, 0.0], [-6.4, 0.0], [-6.4, 4.1], [0.0, 4.1]]
-        box_c = [6.4, 4.1]
-        operate = Operate(map, box_c)
-        operate.collection()
+        operate.dispose()
+        # operate.collection()
+
 
         # operate.bot.rotate(0.6)
         # operate.bot.rotate(-0.6)
